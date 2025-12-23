@@ -10,4 +10,6 @@ export * from './sys-role.entity';
 export * from './sys-menu.entity';
 export * from './sys-post.entity';
 export * from './sys-oper-log.entity';
+export * from './sys-role-menu.entity';
+export * from './sys-role-dept.entity';
 

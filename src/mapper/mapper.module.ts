@@ -1,12 +1,23 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { SysUser, SysDept, SysRole, SysMenu, SysPost, SysOperLog } from '../domain/entities';
+import { 
+  SysUser, 
+  SysDept, 
+  SysRole, 
+  SysMenu, 
+  SysPost, 
+  SysOperLog,
+  SysRoleMenu,
+  SysRoleDept,
+} from '../domain/entities';
 import { UserRepository } from './user.repository';
 import { UserRoleRepository } from './user-role.repository';
 import { UserPostRepository } from './user-post.repository';
 import { OperLogRepository } from './oper-log.repository';
 import { MenuRepository } from './menu.repository';
 import { RoleRepository } from './role.repository';
+import { RoleMenuRepository } from './role-menu.repository';
+import { RoleDeptRepository } from './role-dept.repository';
 
 /**
  * Mapper 模块
@@ -21,6 +32,8 @@ import { RoleRepository } from './role.repository';
       SysMenu,
       SysPost,
       SysOperLog,
+      SysRoleMenu,
+      SysRoleDept,
     ]),
   ],
   providers: [
@@ -30,6 +43,8 @@ import { RoleRepository } from './role.repository';
     OperLogRepository,
     MenuRepository,
     RoleRepository,
+    RoleMenuRepository,
+    RoleDeptRepository,
   ],
   exports: [
     UserRepository,
@@ -38,6 +53,8 @@ import { RoleRepository } from './role.repository';
     OperLogRepository,
     MenuRepository,
     RoleRepository,
+    RoleMenuRepository,
+    RoleDeptRepository,
     TypeOrmModule,
   ],
 })

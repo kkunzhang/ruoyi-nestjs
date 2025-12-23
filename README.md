@@ -2,11 +2,23 @@
 
 这是将 RuoYi-Vue (Java/Spring Boot) 迁移到 NestJS 的项目。
 
+## 📚 文档导航
+
+- 📖 [快速开始指南](docs/guides/QUICK_START.md) - 新手入门
+- 🏗️ [项目结构说明](docs/guides/PROJECT_STRUCTURE.md) - 了解项目架构
+- 🔄 [迁移指南](docs/guides/MIGRATION_GUIDE.md) - Java → NestJS 迁移参考
+- 💾 [TypeORM 使用说明](docs/guides/README-TypeORM.md) - 数据库操作指南
+- 📊 [迁移进度对比](docs/optimization/迁移进度对比.md) - 查看待完成工作
+- ✅ [项目完成总结](docs/completion/项目完成总结-最终版.md) - 已完成功能总览
+- 🔧 [后续优化 TODO](docs/optimization/后续优化TODO.md) - 待优化项清单
+
+更多文档请查看 [docs/](docs/) 文件夹。
+
 ## 技术栈
 
-- **框架**: NestJS (Node.js)
+- **框架**: NestJS v11 (Node.js 20)
 - **语言**: TypeScript (严格类型)
-- **ORM**: Prisma (连接 MySQL)
+- **ORM**: TypeORM (连接 MySQL)
 - **API 文档**: Swagger (@nestjs/swagger)
 - **校验**: class-validator + class-transformer
 - **认证**: JWT + Passport
@@ -169,18 +181,29 @@ npm run prisma:studio      # 打开 Prisma Studio（数据库可视化工具）
 3. **BigInt 处理**：MySQL 的 `BIGINT` 在 Prisma 中为 `BigInt` 类型
 4. **NULL 处理**：TypeScript 严格模式下需要正确处理 `null` 和 `undefined`
 
-## 后续计划
+## 📊 项目进度
 
-- [ ] 完善用户管理模块
-- [ ] 实现角色权限系统
-- [ ] 实现菜单管理
-- [ ] 实现部门管理
-- [ ] 实现岗位管理
-- [ ] 实现字典管理
-- [ ] 实现参数配置
-- [ ] 实现通知公告
-- [ ] 实现操作日志
-- [ ] 实现登录日志
+### ✅ 已完成（29%）
+
+- ✅ **基础架构**：实体层、Mapper 层、Service 层、Controller 层
+- ✅ **用户管理**：完整的用户 CRUD、权限管理、密码重置
+- ✅ **认证授权**：JWT 认证、权限验证、角色验证、数据权限
+- ✅ **操作日志**：日志记录、日志持久化
+- ✅ **全局功能**：异常处理、统一响应、数据验证、验证码
+
+### 🔴 待完成（高优先级）
+
+- [ ] 角色管理（12个接口）
+- [ ] 菜单管理（8个接口，包含动态路由）
+- [ ] 部门管理（7个接口）
+- [ ] 操作日志查询（4个接口）
+
+### 🟡 待完成（中优先级）
+
+- [ ] 岗位管理、字典管理、参数配置
+- [ ] 个人中心、登录日志、在线用户
+
+详细进度请查看：[迁移进度对比](docs/optimization/迁移进度对比.md)
 
 ## 许可证
 
