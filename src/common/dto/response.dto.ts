@@ -27,6 +27,20 @@ export class ResponseDto<T = any> {
   static error(msg = '操作失败', code = 500): ResponseDto {
     return new ResponseDto(code, msg);
   }
+
+  /**
+   * 成功响应（别名，对应 Java 的 success）
+   */
+  static ok<T>(msg = '操作成功', data?: T): ResponseDto<T> {
+    return new ResponseDto(200, msg, data);
+  }
+
+  /**
+   * 失败响应（别名，对应 Java 的 error）
+   */
+  static fail(msg = '操作失败', code = 500): ResponseDto {
+    return new ResponseDto(code, msg);
+  }
 }
 
 /**

@@ -96,6 +96,16 @@ export class SysRole extends BaseEntity {
   depts?: SysDept[];
 
   /**
+   * 菜单ID列表（用于新增/修改时传递）
+   */
+  menuIds?: number[];
+
+  /**
+   * 部门ID列表（用于数据权限分配）
+   */
+  deptIds?: number[];
+
+  /**
    * 判断是否为管理员角色
    */
   isAdmin(): boolean {

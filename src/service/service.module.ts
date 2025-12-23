@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MapperModule } from '../mapper/mapper.module';
 import { UserService } from './user.service';
 import { AuthService } from './auth.service';
+import { RoleService } from './role.service';
 
 /**
  * Service 模块
@@ -24,8 +25,8 @@ import { AuthService } from './auth.service';
       }),
     }),
   ],
-  providers: [UserService, AuthService],
-  exports: [UserService, AuthService],
+  providers: [UserService, AuthService, RoleService],
+  exports: [UserService, AuthService, RoleService],
 })
 export class ServiceModule {}
 
