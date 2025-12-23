@@ -4,12 +4,14 @@ import {
   ExecutionContext,
   CallHandler,
   Logger,
+  Inject,
 } from '@nestjs/common';
 import { Observable, throwError } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
 import { Reflector } from '@nestjs/core';
 import { LOG_METADATA_KEY, LogMetadata } from '../decorators/log.decorator';
 import { RequestUser } from '../interfaces/jwt-payload.interface';
+import { OperLogRepository } from '../../mapper/oper-log.repository';
 
 /**
  * 操作日志拦截器
@@ -19,7 +21,10 @@ import { RequestUser } from '../interfaces/jwt-payload.interface';
 export class LogInterceptor implements NestInterceptor {
   private readonly logger = new Logger(LogInterceptor.name);
 
-  constructor(private reflector: Reflector) {}
+  constructor(
+    private reflector: Reflector,
+    @Inject(OperLogRepository) private operLogRepository: OperLogRepository,
+  ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     // 获取日志元数据
@@ -63,13 +68,15 @@ export class LogInterceptor implements NestInterceptor {
           `[操作日志] ${logInfo.title} - ${logInfo.operName} - ${logInfo.method} ${logInfo.url} - ${duration}ms - 成功`,
         );
 
-        // TODO: 将日志保存到数据库
-        // await this.saveOperLog({
-        //   ...logInfo,
-        //   status: 0, // 成功
-        //   duration,
-        //   responseData: logMetadata.isSaveResponseData ? data : undefined,
-        // });
+        // 保存日志到数据库（异步，不阻塞响应）
+        this.saveOperLog({
+          ...logInfo,
+          status: 0, // 成功
+          costTime: duration,
+          jsonResult: logMetadata.isSaveResponseData ? JSON.stringify(data) : undefined,
+        }).catch((err) => {
+          this.logger.error(`保存操作日志失败: ${err.message}`);
+        });
       }),
       catchError((error) => {
         const endTime = Date.now();
@@ -80,13 +87,15 @@ export class LogInterceptor implements NestInterceptor {
           `[操作日志] ${logInfo.title} - ${logInfo.operName} - ${logInfo.method} ${logInfo.url} - ${duration}ms - 失败: ${error.message}`,
         );
 
-        // TODO: 将日志保存到数据库
-        // await this.saveOperLog({
-        //   ...logInfo,
-        //   status: 1, // 失败
-        //   duration,
-        //   errorMsg: error.message,
-        // });
+        // 保存日志到数据库（异步，不阻塞响应）
+        this.saveOperLog({
+          ...logInfo,
+          status: 1, // 失败
+          costTime: duration,
+          errorMsg: error.message,
+        }).catch((err) => {
+          this.logger.error(`保存操作日志失败: ${err.message}`);
+        });
 
         return throwError(() => error);
       }),
@@ -111,6 +120,33 @@ export class LogInterceptor implements NestInterceptor {
     }
 
     return filtered;
+  }
+
+  /**
+   * 保存操作日志到数据库
+   */
+  private async saveOperLog(logData: any): Promise<void> {
+    try {
+      await this.operLogRepository.insertOperLog({
+        title: logData.title,
+        businessType: logData.businessType,
+        method: `${logData.method} ${logData.url}`,
+        requestMethod: logData.method,
+        operatorType: 1, // 后台用户
+        operName: logData.operName,
+        operUrl: logData.url,
+        operIp: logData.ip,
+        operLocation: '', // TODO: IP归属地查询
+        operParam: logData.requestParams ? JSON.stringify(logData.requestParams) : undefined,
+        jsonResult: logData.jsonResult,
+        status: logData.status,
+        errorMsg: logData.errorMsg,
+        costTime: logData.costTime,
+        operTime: logData.operTime,
+      });
+    } catch (error) {
+      this.logger.error(`保存操作日志异常: ${error.message}`, error.stack);
+    }
   }
 }
 

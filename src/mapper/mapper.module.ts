@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { SysUser, SysDept, SysRole, SysMenu, SysPost } from '../domain/entities';
+import { SysUser, SysDept, SysRole, SysMenu, SysPost, SysOperLog } from '../domain/entities';
 import { UserRepository } from './user.repository';
 import { UserRoleRepository } from './user-role.repository';
 import { UserPostRepository } from './user-post.repository';
+import { OperLogRepository } from './oper-log.repository';
 
 /**
  * Mapper 模块
@@ -17,17 +18,20 @@ import { UserPostRepository } from './user-post.repository';
       SysRole,
       SysMenu,
       SysPost,
+      SysOperLog,
     ]),
   ],
   providers: [
     UserRepository,
     UserRoleRepository,
     UserPostRepository,
+    OperLogRepository,
   ],
   exports: [
     UserRepository,
     UserRoleRepository,
     UserPostRepository,
+    OperLogRepository,
     TypeOrmModule,
   ],
 })
