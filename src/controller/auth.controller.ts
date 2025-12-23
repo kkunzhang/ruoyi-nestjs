@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from '../service/auth.service';
 import { ResponseDto } from '../common/dto/response.dto';
@@ -7,6 +7,7 @@ import { Public } from '../common/decorators/public.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { Log, BusinessType } from '../common/decorators/log.decorator';
+import { CaptchaUtil } from '../common/utils/captcha.util';
 
 /**
  * 认证 Controller
@@ -17,6 +18,30 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   /**
+   * 获取验证码
+   */
+  @Public()
+  @Get('captchaImage')
+  @ApiOperation({ summary: '获取验证码' })
+  @ApiResponse({ status: 200, description: '操作成功', type: ResponseDto })
+  async captchaImage(): Promise<ResponseDto> {
+    // 生成验证码
+    const code = CaptchaUtil.generateCode(4);
+    const uuid = CaptchaUtil.generateUUID();
+    
+    // 保存验证码
+    CaptchaUtil.saveCaptcha(uuid, code);
+    
+    // 生成SVG图片
+    const img = CaptchaUtil.generateSvg(code);
+    
+    return ResponseDto.success({
+      uuid,
+      img,
+    });
+  }
+
+  /**
    * 用户登录
    */
   @Public()
@@ -25,6 +50,14 @@ export class AuthController {
   @ApiResponse({ status: 200, description: '登录成功', type: ResponseDto })
   @Log({ title: '用户登录', businessType: BusinessType.OTHER })
   async login(@Body() loginDto: LoginDto): Promise<ResponseDto> {
+    // 验证验证码（可选，生产环境建议启用）
+    if (loginDto.code && loginDto.uuid) {
+      const isValid = CaptchaUtil.verifyCaptcha(loginDto.uuid, loginDto.code);
+      if (!isValid) {
+        throw new BadRequestException('验证码错误或已过期');
+      }
+    }
+
     const result = await this.authService.login(
       loginDto.userName,
       loginDto.password,

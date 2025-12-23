@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { UserService } from './user.service';
 import { BcryptUtil } from '../common/utils/bcrypt.util';
 import { JwtPayload } from '../common/interfaces/jwt-payload.interface';
+import { MenuRepository } from '../mapper/menu.repository';
 
 /**
  * 认证服务
@@ -12,6 +13,7 @@ export class AuthService {
   constructor(
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
+    private readonly menuRepository: MenuRepository,
   ) {}
 
   /**
@@ -52,14 +54,23 @@ export class AuthService {
       new Date(),
     );
 
+    // 获取用户权限列表
+    let permissions: string[] = [];
+    if (user.userId === 1) {
+      // 超级管理员拥有所有权限
+      permissions = ['*:*:*'];
+    } else {
+      // 从数据库加载用户权限
+      permissions = await this.menuRepository.selectMenuPermsByUserId(user.userId);
+    }
+
     // 生成 Token
     const payload: JwtPayload = {
       userId: user.userId,
       userName: user.userName,
       deptId: user.deptId,
       roleIds: user.roles?.map((role) => role.roleId) || [],
-      // TODO: 获取用户权限列表
-      permissions: [],
+      permissions,
     };
 
     const accessToken = this.jwtService.sign(payload);
@@ -93,6 +104,16 @@ export class AuthService {
       throw new UnauthorizedException('用户不存在');
     }
 
+    // 获取用户权限列表
+    let permissions: string[] = [];
+    if (userId === 1) {
+      // 超级管理员拥有所有权限
+      permissions = ['*:*:*'];
+    } else {
+      // 从数据库加载用户权限
+      permissions = await this.menuRepository.selectMenuPermsByUserId(userId);
+    }
+
     return {
       user: {
         userId: user.userId,
@@ -107,8 +128,7 @@ export class AuthService {
         posts: user.posts,
       },
       roles: user.roles?.map((role) => role.roleKey) || [],
-      // TODO: 获取用户权限列表
-      permissions: [],
+      permissions,
     };
   }
 
