@@ -1,0 +1,238 @@
+### 角色管理 API 测试集合
+### 使用 VS Code REST Client 或 IntelliJ HTTP Client
+
+@baseUrl = http://localhost:3000
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...  # 需要先登录获取 token
+
+### ============================================
+### 1. 登录获取 Token
+### ============================================
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "userName": "admin",
+  "password": "admin123"
+}
+
+### ============================================
+### 2. 获取角色列表（分页查询）
+### ============================================
+GET {{baseUrl}}/system/role/list?pageNum=1&pageSize=10
+Authorization: Bearer {{token}}
+
+### 获取角色列表（带筛选）
+GET {{baseUrl}}/system/role/list?pageNum=1&pageSize=10&roleName=管理员&status=0
+Authorization: Bearer {{token}}
+
+### ============================================
+### 3. 获取角色详情
+### ============================================
+GET {{baseUrl}}/system/role/2
+Authorization: Bearer {{token}}
+
+### ============================================
+### 4. 新增角色
+### ============================================
+POST {{baseUrl}}/system/role
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "roleName": "测试角色",
+  "roleKey": "test",
+  "roleSort": 5,
+  "status": "0",
+  "dataScope": "1",
+  "menuCheckStrictly": true,
+  "deptCheckStrictly": true,
+  "menuIds": [1, 2, 3],
+  "remark": "这是一个测试角色"
+}
+
+### ============================================
+### 5. 修改角色
+### ============================================
+PUT {{baseUrl}}/system/role
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "roleId": 2,
+  "roleName": "普通角色（已修改）",
+  "roleKey": "common",
+  "roleSort": 3,
+  "status": "0",
+  "dataScope": "2",
+  "menuCheckStrictly": true,
+  "deptCheckStrictly": true,
+  "menuIds": [1, 2, 100, 101],
+  "deptIds": [100, 101],
+  "remark": "修改后的备注"
+}
+
+### ============================================
+### 6. 修改角色状态
+### ============================================
+PUT {{baseUrl}}/system/role/changeStatus
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "roleId": 2,
+  "status": "1"
+}
+
+### 恢复角色状态
+PUT {{baseUrl}}/system/role/changeStatus
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "roleId": 2,
+  "status": "0"
+}
+
+### ============================================
+### 7. 修改数据权限
+### ============================================
+PUT {{baseUrl}}/system/role/dataScope
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "roleId": 2,
+  "dataScope": "2",
+  "deptIds": [100, 101, 102]
+}
+
+### ============================================
+### 8. 删除角色（单个）
+### ============================================
+DELETE {{baseUrl}}/system/role/100
+Authorization: Bearer {{token}}
+
+### 删除角色（批量）
+DELETE {{baseUrl}}/system/role/100,101,102
+Authorization: Bearer {{token}}
+
+### ============================================
+### 9. 获取角色选择框列表
+### ============================================
+GET {{baseUrl}}/system/role/optionselect
+Authorization: Bearer {{token}}
+
+### ============================================
+### 10. 获取角色部门树列表
+### ============================================
+GET {{baseUrl}}/system/role/deptTree/2
+Authorization: Bearer {{token}}
+
+### ============================================
+### 11. 查询已分配用户角色列表
+### ============================================
+GET {{baseUrl}}/system/role/authUser/allocatedList?roleId=2&pageNum=1&pageSize=10
+Authorization: Bearer {{token}}
+
+### 查询已分配用户（带筛选）
+GET {{baseUrl}}/system/role/authUser/allocatedList?roleId=2&pageNum=1&pageSize=10&userName=admin
+Authorization: Bearer {{token}}
+
+### ============================================
+### 12. 查询未分配用户角色列表
+### ============================================
+GET {{baseUrl}}/system/role/authUser/unallocatedList?roleId=2&pageNum=1&pageSize=10
+Authorization: Bearer {{token}}
+
+### ============================================
+### 13. 取消授权用户（单个）
+### ============================================
+PUT {{baseUrl}}/system/role/authUser/cancel
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "userId": 3,
+  "roleId": 2
+}
+
+### ============================================
+### 14. 批量取消授权用户
+### ============================================
+PUT {{baseUrl}}/system/role/authUser/cancelAll
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "roleId": 2,
+  "userIds": [3, 4, 5]
+}
+
+### ============================================
+### 15. 批量选择用户授权
+### ============================================
+PUT {{baseUrl}}/system/role/authUser/selectAll
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "roleId": 2,
+  "userIds": [3, 4, 5]
+}
+
+### ============================================
+### 16. 导出角色数据
+### ============================================
+POST {{baseUrl}}/system/role/export
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "roleName": "",
+  "status": "0"
+}
+
+### ============================================
+### 错误测试用例
+### ============================================
+
+### 测试：新增角色名称重复
+POST {{baseUrl}}/system/role
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "roleName": "超级管理员",
+  "roleKey": "test_duplicate",
+  "roleSort": 1,
+  "status": "0"
+}
+
+### 测试：修改超级管理员角色（应被拒绝）
+PUT {{baseUrl}}/system/role
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "roleId": 1,
+  "roleName": "超级管理员（修改）",
+  "roleKey": "admin",
+  "roleSort": 1,
+  "status": "0"
+}
+
+### 测试：删除超级管理员角色（应被拒绝）
+DELETE {{baseUrl}}/system/role/1
+Authorization: Bearer {{token}}
+
+### 测试：删除已分配的角色（应被拒绝）
+DELETE {{baseUrl}}/system/role/2
+Authorization: Bearer {{token}}
+
+### 测试：无 Token 访问（应401）
+GET {{baseUrl}}/system/role/list
+
+### 测试：无权限访问（应403）
+GET {{baseUrl}}/system/role/list
+Authorization: Bearer invalid_token
+
