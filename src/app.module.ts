@@ -5,6 +5,7 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { typeOrmConfig } from './config/typeorm.config';
+import { CommonModule } from './common/common.module';
 import { MapperModule } from './mapper';
 import { ServiceModule } from './service';
 import { ControllerModule } from './controller';
@@ -22,6 +23,8 @@ import { JwtStrategy } from './common/strategies/jwt.strategy';
         }),
         // TypeORM 数据库模块
         TypeOrmModule.forRoot(typeOrmConfig),
+        // Common 通用模块（Redis、Captcha等）
+        CommonModule,
         // Mapper 数据访问层模块
         MapperModule,
         // Service 业务逻辑层模块

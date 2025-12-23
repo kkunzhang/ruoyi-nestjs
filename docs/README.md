@@ -211,3 +211,5 @@ docs/
 
 **需要帮助？** 查看根目录的 `README.md` 或联系项目维护者。
 
+
+- [验证码Redis存储完成.md](./completion/验证码Redis存储完成.md) ⭐️ 新增（验证码从内存改为Redis存储）

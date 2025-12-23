@@ -34,8 +34,22 @@ return from(this.buildDataScopeSQL(user, dataScopeOptions)).pipe(
 
 ---
 
-#### 2. 验证码改用 Redis 存储
-**文件**: `src/common/utils/captcha.util.ts` → `src/common/services/captcha.service.ts`
+#### 2. ~~验证码改用 Redis 存储~~ ✅ 已完成
+**文件**: ~~`src/common/utils/captcha.util.ts`~~ → `src/common/services/captcha.service.ts`
+
+**状态**: ✅ 已完成（2025-12-23）
+
+**完成内容**:
+- ✅ 安装 `ioredis` 依赖
+- ✅ 创建 `src/config/redis.config.ts`
+- ✅ 创建 `src/common/services/captcha.service.ts`
+- ✅ 创建 `src/common/common.module.ts`
+- ✅ 更新 `AuthController` 使用 `CaptchaService`
+- ✅ Redis Key 与若依保持一致：`captcha_codes:{uuid}`
+- ✅ 过期时间：120秒（2分钟）
+- ✅ 支持一次性使用
+
+**文档**: [验证码Redis存储完成.md](../completion/验证码Redis存储完成.md)
 
 **原因**:
 - 若依原版使用 Redis 存储验证码
