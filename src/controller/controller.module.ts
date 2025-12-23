@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ServiceModule } from '../service/service.module';
 import { UserController } from './user.controller';
+import { AuthController } from './auth.controller';
 
 /**
  * Controller 模块
@@ -8,7 +9,7 @@ import { UserController } from './user.controller';
  */
 @Module({
   imports: [ServiceModule], // 导入 Service 模块
-  controllers: [UserController],
+  controllers: [UserController, AuthController],
 })
 export class ControllerModule {}
 

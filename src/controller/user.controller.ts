@@ -20,6 +20,9 @@ import { ResetPwdDto } from './dto/reset-pwd.dto';
 import { ChangeStatusDto } from './dto/change-status.dto';
 import { AuthRoleDto } from './dto/auth-role.dto';
 import { SysUser } from '../domain/entities/sys-user.entity';
+import { RequirePermissions } from '../common/decorators/permissions.decorator';
+import { Log, BusinessType } from '../common/decorators/log.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 /**
  * 用户信息 Controller
@@ -35,6 +38,7 @@ export class UserController {
    * 获取用户列表
    */
   @Get('list')
+  @RequirePermissions('system:user:list')
   @ApiOperation({ summary: '获取用户列表' })
   @ApiResponse({ status: 200, description: '查询成功', type: PageResponseDto })
   async list(@Query() query: UserQueryDto): Promise<PageResponseDto<SysUser>> {
@@ -102,9 +106,14 @@ export class UserController {
    * 新增用户
    */
   @Post()
+  @RequirePermissions('system:user:add')
+  @Log({ title: '用户管理', businessType: BusinessType.INSERT })
   @ApiOperation({ summary: '新增用户' })
   @ApiResponse({ status: 200, description: '新增成功', type: ResponseDto })
-  async add(@Body() createUserDto: CreateUserDto): Promise<ResponseDto> {
+  async add(
+    @Body() createUserDto: CreateUserDto,
+    @CurrentUser('userName') currentUserName: string,
+  ): Promise<ResponseDto> {
     // TODO: 检查部门数据权限 deptService.checkDeptDataScope
     // TODO: 检查角色数据权限 roleService.checkRoleDataScope
 
@@ -142,9 +151,13 @@ export class UserController {
       }
     }
 
-    // TODO: 设置创建人 createUserDto.createBy = getUsername();
+    // 设置创建人
+    const userWithCreator = {
+      ...createUserDto,
+      createBy: currentUserName,
+    };
 
-    const result = await this.userService.insertUser(createUserDto);
+    const result = await this.userService.insertUser(userWithCreator);
     return ResponseDto.success(result, '新增成功');
   }
 
@@ -152,9 +165,14 @@ export class UserController {
    * 修改用户
    */
   @Put()
+  @RequirePermissions('system:user:edit')
+  @Log({ title: '用户管理', businessType: BusinessType.UPDATE })
   @ApiOperation({ summary: '修改用户' })
   @ApiResponse({ status: 200, description: '修改成功', type: ResponseDto })
-  async edit(@Body() updateUserDto: UpdateUserDto): Promise<ResponseDto> {
+  async edit(
+    @Body() updateUserDto: UpdateUserDto,
+    @CurrentUser('userName') currentUserName: string,
+  ): Promise<ResponseDto> {
     // 校验用户是否允许操作
     this.userService.checkUserAllowed({ userId: updateUserDto.userId });
 
@@ -199,9 +217,13 @@ export class UserController {
       }
     }
 
-    // TODO: 设置更新人 updateUserDto.updateBy = getUsername();
+    // 设置更新人
+    const userWithUpdater = {
+      ...updateUserDto,
+      updateBy: currentUserName,
+    };
 
-    const result = await this.userService.updateUser(updateUserDto);
+    const result = await this.userService.updateUser(userWithUpdater);
     return ResponseDto.success(result, '修改成功');
   }
 
@@ -209,15 +231,20 @@ export class UserController {
    * 删除用户
    */
   @Delete(':userIds')
+  @RequirePermissions('system:user:remove')
+  @Log({ title: '用户管理', businessType: BusinessType.DELETE })
   @ApiOperation({ summary: '删除用户' })
   @ApiResponse({ status: 200, description: '删除成功', type: ResponseDto })
-  async remove(@Param('userIds') userIds: string): Promise<ResponseDto> {
+  async remove(
+    @Param('userIds') userIds: string,
+    @CurrentUser('userId') currentUserId: number,
+  ): Promise<ResponseDto> {
     const userIdArray = userIds.split(',').map((id) => parseInt(id, 10));
 
-    // TODO: 检查是否删除当前用户
-    // if (userIdArray.includes(getCurrentUserId())) {
-    //   throw new BadRequestException('当前用户不能删除');
-    // }
+    // 检查是否删除当前用户
+    if (userIdArray.includes(currentUserId)) {
+      throw new BadRequestException('当前用户不能删除');
+    }
 
     const result = await this.userService.deleteUserByIds(userIdArray);
     return ResponseDto.success(result, '删除成功');
