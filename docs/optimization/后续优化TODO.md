@@ -147,7 +147,27 @@ const isValid = await this.captchaService.verifyCaptcha(uuid, code);
 
 ### 🟡 中优先级
 
-#### 3. 实现 Google Kaptcha 风格验证码
+#### 3. ~~登录 Token 管理 - 实现注销功能~~ ✅ 已完成
+**文件**: ~~无~~ → `src/common/services/token.service.ts`
+
+**状态**: ✅ 已完成（2025-12-23）
+
+**完成内容**:
+- ✅ 创建 `LoginUser` 接口（对应若依）
+- ✅ 创建 `TokenService`（完全模仿若依）
+- ✅ 更新 `AuthService` 使用 `TokenService`
+- ✅ 更新 `JwtStrategy` 从 Redis 加载用户
+- ✅ 实现注销功能（删除 Redis 数据）
+- ✅ JWT Token 只包含 UUID
+- ✅ 完整的 LoginUser 存储在 Redis
+- ✅ 自动刷新 Token（剩余时间 < 20分钟）
+- ✅ 支持服务端主动踢人
+
+**文档**: [Token管理-若依版本实现完成.md](../completion/Token管理-若依版本实现完成.md)
+
+---
+
+#### 4. 实现 Google Kaptcha 风格验证码
 **文件**: `src/common/services/captcha.service.ts`
 
 **若依原版特性**:
