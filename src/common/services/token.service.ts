@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Redis } from 'ioredis';
 import { LoginUser } from '../interfaces/login-user.interface';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 
 /**
  * Token 管理服务
@@ -159,7 +159,7 @@ export class TokenService {
    * 生成 UUID
    */
   private generateUUID(): string {
-    return uuidv4().replace(/-/g, '');
+    return randomUUID().replace(/-/g, '');
   }
 
   /**
@@ -211,6 +211,82 @@ export class TokenService {
     else if (userAgent.includes('iOS')) os = 'iOS';
 
     return { browser, os };
+  }
+
+  /**
+   * 更新 LoginUser 中的权限列表（权限刷新）
+   * @param uuid 用户唯一标识
+   * @param permissions 新的权限列表
+   */
+  async updatePermissions(uuid: string, permissions: string[]): Promise<void> {
+    const loginUser = await this.getLoginUser(uuid);
+    if (!loginUser) {
+      return; // 用户不存在或已过期，无需更新
+    }
+
+    // 更新权限
+    loginUser.permissions = permissions;
+
+    // 保存回 Redis（同时刷新过期时间）
+    await this.refreshToken(loginUser);
+  }
+
+  /**
+   * 批量更新多个用户的权限（角色修改后刷新）
+   * @param userIds 用户ID列表
+   * @param getPermissionsFn 获取权限的函数
+   */
+  async batchUpdateUsersPermissions(
+    userIds: number[],
+    getPermissionsFn: (userId: number) => Promise<string[]>,
+  ): Promise<void> {
+    // 获取所有在线用户的 LoginUser Key
+    const pattern = this.LOGIN_TOKEN_KEY + '*';
+    const keys = await this.redis.keys(pattern);
+
+    for (const key of keys) {
+      const loginUserJson = await this.redis.get(key);
+      if (!loginUserJson) continue;
+
+      try {
+        const loginUser: LoginUser = JSON.parse(loginUserJson);
+
+        // 如果该用户在受影响的用户列表中，刷新权限
+        if (userIds.includes(loginUser.userId)) {
+          const newPermissions = await getPermissionsFn(loginUser.userId);
+          loginUser.permissions = newPermissions;
+
+          // 保存回 Redis
+          const userKey = this.getTokenKey(loginUser.token);
+          const userJson = JSON.stringify(loginUser);
+          await this.redis.set(userKey, userJson, 'EX', this.EXPIRE_TIME * 60);
+        }
+      } catch (error) {
+        console.error('更新用户权限失败:', error);
+      }
+    }
+  }
+
+  /**
+   * 刷新指定角色下所有在线用户的权限
+   * @param roleId 角色ID
+   * @param getUserIdsByRoleFn 获取角色下用户ID的函数
+   * @param getPermissionsFn 获取权限的函数
+   */
+  async refreshRoleUsersPermissions(
+    roleId: number,
+    getUserIdsByRoleFn: (roleId: number) => Promise<number[]>,
+    getPermissionsFn: (userId: number) => Promise<string[]>,
+  ): Promise<void> {
+    // 获取该角色下的所有用户ID
+    const userIds = await getUserIdsByRoleFn(roleId);
+
+    if (userIds.length === 0) {
+      return; // 没有用户，无需更新
+    }
+
+    // 批量更新这些用户的权限
+    await this.batchUpdateUsersPermissions(userIds, getPermissionsFn);
   }
 }
 

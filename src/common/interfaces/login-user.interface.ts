@@ -20,7 +20,7 @@ export interface LoginUser {
    */
   token: string;
 
-  /**
+  /** 
    * 登录时间（毫秒时间戳）
    */
   loginTime: number;

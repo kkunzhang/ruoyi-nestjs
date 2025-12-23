@@ -85,7 +85,7 @@ export class RoleController {
     @Param('roleId') roleId: number,
     @CurrentUser() user: JwtPayload,
   ): Promise<ResponseDto<any>> {
-    await this.roleService.checkRoleDataScope([roleId], user.userId);
+    this.roleService.checkRoleDataScope(roleId);
     const role = await this.roleService.selectRoleById(roleId);
     return ResponseDto.ok('查询成功', role);
   }
@@ -140,7 +140,7 @@ export class RoleController {
     this.roleService.checkRoleAllowed({ roleId: updateRoleDto.roleId });
 
     // 校验数据权限
-    await this.roleService.checkRoleDataScope([updateRoleDto.roleId], user.userId);
+    this.roleService.checkRoleDataScope(updateRoleDto.roleId);
 
     // 校验角色名称唯一性
     const isRoleNameUnique = await this.roleService.checkRoleNameUnique(updateRoleDto);
@@ -185,7 +185,7 @@ export class RoleController {
     this.roleService.checkRoleAllowed({ roleId: updateDataScopeDto.roleId });
 
     // 校验数据权限
-    await this.roleService.checkRoleDataScope([updateDataScopeDto.roleId], user.userId);
+    this.roleService.checkRoleDataScope(updateDataScopeDto.roleId);
 
     // 更新数据权限
     const result = await this.roleService.authDataScope(updateDataScopeDto);
@@ -210,7 +210,7 @@ export class RoleController {
     this.roleService.checkRoleAllowed({ roleId: changeRoleStatusDto.roleId });
 
     // 校验数据权限
-    await this.roleService.checkRoleDataScope([changeRoleStatusDto.roleId], user.userId);
+    this.roleService.checkRoleDataScope(changeRoleStatusDto.roleId);
 
     // 更新状态
     const role: any = {
@@ -345,7 +345,7 @@ export class RoleController {
     const { roleId, userIds } = authUserDto;
 
     // 校验数据权限
-    await this.roleService.checkRoleDataScope([roleId], user.userId);
+    this.roleService.checkRoleDataScope(roleId);
 
     const result = await this.roleService.insertAuthUsers(roleId, userIds);
 

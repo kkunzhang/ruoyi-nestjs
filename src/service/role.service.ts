@@ -6,6 +6,8 @@ import { RoleRepository } from '../mapper/role.repository';
 import { RoleMenuRepository } from '../mapper/role-menu.repository';
 import { RoleDeptRepository } from '../mapper/role-dept.repository';
 import { UserRoleRepository } from '../mapper/user-role.repository';
+import { MenuRepository } from '../mapper/menu.repository';
+import { TokenService } from '../common/services/token.service';
 
 /**
  * 角色业务层
@@ -18,6 +20,8 @@ export class RoleService {
     private readonly roleMenuRepository: RoleMenuRepository,
     private readonly roleDeptRepository: RoleDeptRepository,
     private readonly userRoleRepository: UserRoleRepository,
+    private readonly menuRepository: MenuRepository,
+    private readonly tokenService: TokenService,
   ) {}
 
   /**
@@ -52,22 +56,12 @@ export class RoleService {
   }
 
   /**
-   * 根据用户ID查询角色权限
+   * 根据用户ID查询权限
    * @param userId 用户ID
-   * @returns 权限列表（角色权限字符集合）
+   * @returns 权限列表
    */
-  async selectRolePermissionByUserId(userId: number): Promise<Set<string>> {
-    const perms = await this.roleRepository.selectRolePermissionByUserId(userId);
-    const permsSet = new Set<string>();
-
-    for (const perm of perms) {
-      if (perm && perm.roleKey) {
-        const keys = perm.roleKey.trim().split(',');
-        keys.forEach((key) => permsSet.add(key));
-      }
-    }
-
-    return permsSet;
+  async selectRolePermissionByUserId(userId: number): Promise<SysRole[]> {
+    return this.roleRepository.selectRolePermissionByUserId(userId);
   }
 
   /**
@@ -75,8 +69,7 @@ export class RoleService {
    * @returns 角色列表
    */
   async selectRoleAll(): Promise<SysRole[]> {
-    const [roles] = await this.selectRoleList({});
-    return roles;
+    return this.roleRepository.selectRoleAll();
   }
 
   /**
@@ -100,31 +93,23 @@ export class RoleService {
   /**
    * 校验角色名称是否唯一
    * @param role 角色信息
-   * @returns 结果 true-唯一 false-不唯一
+   * @returns true: 唯一, false: 不唯一
    */
   async checkRoleNameUnique(role: Partial<SysRole>): Promise<boolean> {
     const roleId = role.roleId || -1;
     const info = await this.roleRepository.checkRoleNameUnique(role.roleName!);
-
-    if (info && info.roleId !== roleId) {
-      return false; // 不唯一
-    }
-    return true; // 唯一
+    return !info || info.roleId === roleId;
   }
 
   /**
    * 校验角色权限是否唯一
    * @param role 角色信息
-   * @returns 结果 true-唯一 false-不唯一
+   * @returns true: 唯一, false: 不唯一
    */
   async checkRoleKeyUnique(role: Partial<SysRole>): Promise<boolean> {
     const roleId = role.roleId || -1;
     const info = await this.roleRepository.checkRoleKeyUnique(role.roleKey!);
-
-    if (info && info.roleId !== roleId) {
-      return false; // 不唯一
-    }
-    return true; // 唯一
+    return !info || info.roleId === roleId;
   }
 
   /**
@@ -132,31 +117,21 @@ export class RoleService {
    * @param role 角色信息
    */
   checkRoleAllowed(role: Partial<SysRole>): void {
-    if (role.roleId && this.isAdmin(role.roleId)) {
+    if (role.roleId && role.roleId === 1) {
       throw new ForbiddenException('不允许操作超级管理员角色');
     }
   }
 
   /**
    * 校验角色是否有数据权限
-   * @param roleIds 角色ID
-   * @param currentUserId 当前用户ID（可选，用于权限校验）
+   * @param roleId 角色ID
    */
-  async checkRoleDataScope(roleIds: number[], currentUserId?: number): Promise<void> {
-    // 超级管理员不需要校验
-    if (currentUserId === 1) {
-      return;
+  checkRoleDataScope(roleId: number): void {
+    if (roleId === 1) {
+      return; // 超级管理员，跳过校验
     }
-
-    // TODO: 实现数据权限校验逻辑
-    // 检查当前用户是否有权限访问这些角色
-    // 如果使用了数据权限，需要验证角色是否在当前用户的数据权限范围内
-    for (const roleId of roleIds) {
-      const role = await this.selectRoleById(roleId);
-      if (!role) {
-        throw new ForbiddenException('没有权限访问角色数据！');
-      }
-    }
+    // TODO: 实现数据权限校验
+    // 根据当前用户的数据权限，判断是否有权限操作该角色
   }
 
   /**
@@ -173,16 +148,16 @@ export class RoleService {
    * @param role 角色信息
    * @returns 结果
    */
-  async insertRole(role: SysRole): Promise<number> {
+  async insertRole(role: Partial<SysRole>): Promise<number> {
     // 新增角色信息
-    const savedRole = await this.roleRepository.insertRole(role);
-    
+    const result = await this.roleRepository.insertRole(role as SysRole);
+
     // 新增角色菜单关联
-    if (role.menuIds && role.menuIds.length > 0) {
-      await this.insertRoleMenu(savedRole.roleId, role.menuIds);
+    if (role.menuIds && role.menuIds.length > 0 && result) {
+      await this.insertRoleMenu(result.roleId, role.menuIds);
     }
 
-    return 1;
+    return result ? result.roleId : 0;
   }
 
   /**
@@ -202,6 +177,9 @@ export class RoleService {
       await this.insertRoleMenu(role.roleId!, role.menuIds);
     }
 
+    // 刷新该角色下所有在线用户的权限（若依机制）
+    await this.refreshRoleUsersPermissions(role.roleId!);
+
     return 1;
   }
 
@@ -211,7 +189,14 @@ export class RoleService {
    * @returns 结果
    */
   async updateRoleStatus(role: Partial<SysRole>): Promise<number> {
-    return this.roleRepository.updateRole(role);
+    const result = await this.roleRepository.updateRole(role);
+
+    // 刷新该角色下所有在线用户的权限
+    if (result > 0) {
+      await this.refreshRoleUsersPermissions(role.roleId!);
+    }
+
+    return result;
   }
 
   /**
@@ -230,6 +215,9 @@ export class RoleService {
     if (role.deptIds && role.deptIds.length > 0) {
       await this.insertRoleDept(role.roleId!, role.deptIds);
     }
+
+    // 数据权限修改不影响功能权限，但为了保险起见也刷新一下
+    await this.refreshRoleUsersPermissions(role.roleId!);
 
     return 1;
   }
@@ -256,50 +244,43 @@ export class RoleService {
    * @returns 结果
    */
   async deleteRoleByIds(roleIds: number[]): Promise<number> {
-    // 校验角色
     for (const roleId of roleIds) {
-      // 检查是否超级管理员
-      this.checkRoleAllowed({ roleId });
-
-      // 检查数据权限
-      await this.checkRoleDataScope([roleId]);
-
-      // 检查角色是否已分配给用户
-      const role = await this.selectRoleById(roleId);
+      // 检查角色是否被分配给用户
       const count = await this.countUserRoleByRoleId(roleId);
       if (count > 0) {
-        throw new BadRequestException(`${role?.roleName}已分配,不能删除`);
+        const role = await this.selectRoleById(roleId);
+        throw new BadRequestException(`角色【${role?.roleName}】已分配，不能删除`);
       }
     }
 
-    // 删除角色与菜单关联
-    await this.roleMenuRepository.deleteRoleMenu(roleIds);
+    // 批量删除角色
+    for (const roleId of roleIds) {
+      await this.deleteRoleById(roleId);
+    }
 
-    // 删除角色与部门关联
-    await this.roleDeptRepository.deleteRoleDept(roleIds);
-
-    // 删除角色
-    return this.roleRepository.deleteRoleByIds(roleIds);
+    return roleIds.length;
   }
 
   /**
    * 取消授权用户角色
-   * @param userId 用户ID
    * @param roleId 角色ID
+   * @param userId 用户ID
    * @returns 结果
    */
-  async deleteAuthUser(userId: number, roleId: number): Promise<boolean> {
-    return this.userRoleRepository.deleteUserRoleInfo(userId, roleId);
+  async deleteAuthUser(roleId: number, userId: number): Promise<number> {
+    const result = await this.userRoleRepository.deleteUserRoleInfo(userId, roleId);
+    return result ? 1 : 0;
   }
 
   /**
    * 批量取消授权用户角色
    * @param roleId 角色ID
-   * @param userIds 需要取消授权的用户数据ID
+   * @param userIds 需要删除的用户数据ID
    * @returns 结果
    */
-  async deleteAuthUsers(roleId: number, userIds: number[]): Promise<boolean> {
-    return this.userRoleRepository.deleteUserRoleInfos(roleId, userIds);
+  async deleteAuthUsers(roleId: number, userIds: number[]): Promise<number> {
+    const result = await this.userRoleRepository.deleteUserRoleInfos(roleId, userIds);
+    return result ? userIds.length : 0;
   }
 
   /**
@@ -308,55 +289,63 @@ export class RoleService {
    * @param userIds 需要授权的用户数据ID
    * @returns 结果
    */
-  async insertAuthUsers(roleId: number, userIds: number[]): Promise<boolean> {
-    return this.userRoleRepository.batchInsertUserRole(roleId, userIds);
+  async insertAuthUsers(roleId: number, userIds: number[]): Promise<number> {
+    const result = await this.userRoleRepository.batchInsertUserRole(roleId, userIds);
+    return result ? userIds.length : 0;
   }
 
   /**
    * 新增角色菜单信息
    * @param roleId 角色ID
    * @param menuIds 菜单ID列表
-   * @returns 结果
    */
-  private async insertRoleMenu(roleId: number, menuIds: number[]): Promise<number> {
-    if (!menuIds || menuIds.length === 0) {
-      return 1;
-    }
-
-    const roleMenuList: Partial<SysRoleMenu>[] = menuIds.map((menuId) => ({
+  private async insertRoleMenu(roleId: number, menuIds: number[]): Promise<void> {
+    const roleMenus: Partial<SysRoleMenu>[] = menuIds.map((menuId) => ({
       roleId,
       menuId,
     }));
 
-    return this.roleMenuRepository.batchRoleMenu(roleMenuList);
+    await this.roleMenuRepository.batchRoleMenu(roleMenus);
   }
 
   /**
-   * 新增角色部门信息(数据权限)
+   * 新增角色部门信息（数据权限）
    * @param roleId 角色ID
    * @param deptIds 部门ID列表
-   * @returns 结果
    */
-  private async insertRoleDept(roleId: number, deptIds: number[]): Promise<number> {
-    if (!deptIds || deptIds.length === 0) {
-      return 1;
-    }
-
-    const roleDeptList: Partial<SysRoleDept>[] = deptIds.map((deptId) => ({
+  private async insertRoleDept(roleId: number, deptIds: number[]): Promise<void> {
+    const roleDepts: Partial<SysRoleDept>[] = deptIds.map((deptId) => ({
       roleId,
       deptId,
     }));
 
-    return this.roleDeptRepository.batchRoleDept(roleDeptList);
+    await this.roleDeptRepository.batchRoleDept(roleDepts);
   }
 
   /**
-   * 判断是否超级管理员
+   * 刷新指定角色下所有在线用户的权限（若依机制）
    * @param roleId 角色ID
-   * @returns 结果
    */
-  private isAdmin(roleId: number): boolean {
-    return roleId === 1;
+  private async refreshRoleUsersPermissions(roleId: number): Promise<void> {
+    try {
+      await this.tokenService.refreshRoleUsersPermissions(
+        roleId,
+        // 获取角色下的用户ID列表
+        async (roleId: number) => {
+          return await this.userRoleRepository.selectUserIdsByRoleId(roleId);
+        },
+        // 获取用户的权限列表
+        async (userId: number) => {
+          if (userId === 1) {
+            // 超级管理员
+            return ['*:*:*'];
+          }
+          return await this.menuRepository.selectMenuPermsByUserId(userId);
+        },
+      );
+    } catch (error) {
+      console.error('刷新用户权限失败:', error);
+      // 不影响主流程，只记录错误
+    }
   }
 }
-

@@ -25,7 +25,7 @@ export const CurrentUser = createParamDecorator(
         }
         return value;
       }
-      return loginUser[data];
+      return (loginUser as any)[data];
     }
 
     // 否则返回完整的 LoginUser
