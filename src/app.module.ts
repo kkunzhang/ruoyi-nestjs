@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { PrismaModule } from './common/prisma/prisma.module';
+import { typeOrmConfig } from './config/typeorm.config';
 
 @Module({
     imports: [
@@ -11,13 +12,14 @@ import { PrismaModule } from './common/prisma/prisma.module';
             isGlobal: true,
             envFilePath: '.env',
         }),
-        // Prisma 数据库模块
-        PrismaModule,
+        // TypeORM 数据库模块
+        TypeOrmModule.forRoot(typeOrmConfig),
         // 后续添加业务模块
     ],
     controllers: [AppController],
     providers: [AppService],
 })
 export class AppModule { }
+
 
 
